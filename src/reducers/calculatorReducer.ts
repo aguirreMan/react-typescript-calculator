@@ -8,9 +8,9 @@ export interface CalculatorState {
 export type CalculatorActions =
   | { type: 'APPEND_NUMBER'; payload: string }
   | { type: 'HANDLE_DECIMALS' }
-  | { type: 'HANLDE_OPERATORS'; payload: string }
+  | { type: 'HANDLE_OPERATORS'; payload: string }
   | { type: 'CLEAR_CALCULATOR'}
-  | { type: 'DELETE_PREV_NUMBER'}
+  | { type: 'DELETE_PREV_NUMBER' }
   | { type: 'CALCULATE_RESULT' }
 
 
@@ -26,17 +26,29 @@ function calculateResult(previousNumber: string, currentNumber: string, operator
     case '*':
       return parsedPreviousNumber * parsedCurrentNumber
     case '/':
-      return parsedPreviousNumber / parsedCurrentNumber
+      return parsedCurrentNumber === 0 ? 0 : parsedPreviousNumber / parsedCurrentNumber
     default:
       return parsedCurrentNumber
   }
+}
+
+export function formatNumber(number: string): string {
+  const [integer, decimal] = number.split('.')
+  const integerNumber = parseFloat(integer)
+  const formattedInteger = isNaN(integerNumber)
+    ? ''
+    : integerNumber.toLocaleString('en-US', { maximumFractionDigits: 0 })
+  if (decimal !== undefined) {
+    return `${formattedInteger}.${decimal}`
+  }
+  return formattedInteger
 }
 
 export function calculatorReducer(state: CalculatorState, action: CalculatorActions): CalculatorState {
   switch (action.type) {
     case 'APPEND_NUMBER':
       if (state.reset) {
-        return { ...state, currentNumber: action.payload, reset: false };
+        return { ...state, currentNumber: action.payload, reset: false }
       }
       return {
         ...state,
@@ -52,7 +64,7 @@ export function calculatorReducer(state: CalculatorState, action: CalculatorActi
       return {
         ...state, currentNumber: state.currentNumber + '.', reset: false
       }
-    case 'HANLDE_OPERATORS':
+    case 'HANDLE_OPERATORS':
       if (state.operator !== null && !state.reset) {
         const chainedOperation = calculateResult(state.previousNumber, state.currentNumber, state.operator)
         return {
@@ -63,13 +75,38 @@ export function calculatorReducer(state: CalculatorState, action: CalculatorActi
           reset: true
         }
       }
-      return { ...state, operator: action.payload, reset: false }
+      return {
+        ...state,
+        operator: action.payload,
+        previousNumber: state.currentNumber,
+        reset: true
+      }
     case 'CLEAR_CALCULATOR':
-      return { ...state, currentNumber: '0', previousNumber: '', operator: null, reset: true };
-    case 'DELETE_PREV_NUMBER':
-      return { ...state, currentNumber: state.currentNumber.slice(0, -1), reset: false };
-    case 'CALCULATE_RESULT':
-      return { ...state,  };
+      return {
+        currentNumber: '0',
+        previousNumber: '',
+        operator: null,
+        reset: true
+      }
+    case 'DELETE_PREV_NUMBER': {
+      const newCurrentNumber = state.currentNumber.slice(0, -1)
+      return {
+        ...state,
+        currentNumber: newCurrentNumber === '' ? '0' : newCurrentNumber,
+        reset: false
+      }
+    }
+    case 'CALCULATE_RESULT': {
+      if (state.operator === null) return state
+      const result = calculateResult(state.previousNumber, state.currentNumber, state.operator)
+      return {
+        ...state,
+        previousNumber: String(result),
+        currentNumber: String(result),
+        operator: null,
+        reset: true
+      }
+    }
     default:
       return state
   }
